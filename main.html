@@ -1,0 +1,166 @@
+<!doctype html>
+
+<html>
+  <head>
+    <meta charset='utf-8' />
+    <meta name="viewport" content="width=device-width, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+
+    <title>Getting started | phina.js</title>
+ 
+  </head>
+  <body>
+    <input 
+    type="range"
+    id="akari">
+    <!DOCTYPE html>
+<html lang="ja">>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title></title>
+
+<style>
+:root{
+  --bg:#fcfcf9;    
+  --card:#fff;    
+  --ink:#1f2328;  
+  --muted:#6b6f76;  
+  --line:#e4e2dc;  
+  --accent:#2f6f5e;
+  --warn:#b4542d;  
+}
+
+/* パソコンやスマホがダークモードのときは、色の変数だけを差し替える */
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#17191c; --card:#202327; --ink:#e8e6e1; --muted:#9a9ea5;
+         --line:#33373c; --accent:#6fbfa6; --warn:#e48a62; }
+}
+
+/* 幅の計算に枠線と余白も含める（レイアウトが崩れにくくなる） */
+*{box-sizing:border-box}
+
+/* ページ全体の文字の種類、背景、文字の色 */
+body{margin:0;font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+     background:var(--bg);color:var(--ink);}
+
+/* 中身を最大640pxの幅で中央にそろえる */
+main{max-width:640px;margin:0 auto;padding:28px 18px 60px}
+h1{font-size:1.35rem;margin:0 0 18px}
+
+/* 白い角丸の箱（カード） */
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+      padding:16px 18px;margin-bottom:14px}
+
+/* 「配分する数字（合計）」という小さな見出し */
+label.top{display:block;font-size:.85rem;color:var(--muted);margin-bottom:6px}
+
+/* 数字と文字の入力欄に共通の見た目 */
+input[type=number],input[type=text]{font:inherit;color:inherit;background:transparent;
+  border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+
+/* 合計の入力欄だけは大きく表示する。tabular-nums は数字の幅をそろえる設定 */
+#total{font-size:1.4rem;width:100%;font-variant-numeric:tabular-nums}
+
+/* モード切り替えのラジオボタンを横に並べる */
+.mode{display:flex;gap:16px;margin-top:12px;font-size:.9rem;flex-wrap:wrap}
+.mode label{display:flex;align-items:center;gap:6px;cursor:pointer}
+
+/* 色分けのバー。中の div を横に並べ、それぞれの幅を % で決める */
+.bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--line);margin:10px 0 6px}
+.bar div{height:100%;transition:width .12s}/* 幅が変わるときに少しなめらかに動かす */
+
+/* 「使用 ○%」を左端、「残り ○%」を右端に置く */
+.summary{display:flex;justify-content:space-between;font-size:.9rem;font-variant-numeric:tabular-nums}
+.summary .rem{font-weight:600}
+.summary .rem.full{color:var(--accent)}/* 100%になったら強調色にする */
+
+/* 項目の1行ごとの区切り線（最初の行だけは線なし） */
+.row{padding:12px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:none}
+
+/* 行の上段：●、名前、%、金額、×ボタン を横に並べる */
+.row-head{display:flex;align-items:center;gap:8px}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}/* 色の丸 */
+
+/* 名前の欄は普段は枠を見えなくし、マウスを乗せたときや入力中だけ枠を出す */
+.row-head input[type=text]{flex:1;min-width:0;border-color:transparent;padding:4px 6px}
+.row-head input[type=text]:hover,.row-head input[type=text]:focus{border-color:var(--line)}
+
+.pct{width:76px;text-align:right;font-variant-numeric:tabular-nums}/* % の入力欄 */
+.amt{min-width:110px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}/* 金額 */
+
+/* × 削除ボタン */
+.del{border:none;background:none;color:var(--muted);font-size:1.1rem;cursor:pointer;padding:4px 6px;border-radius:6px}
+.del:hover{color:var(--warn);background:var(--line)}
+
+/* スライダー。accent-color でつまみとバーの色を変える */
+input[type=range]{width:100%;margin-top:8px;accent-color:var(--accent)}
+
+/* 下のボタンの並び */
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+button.btn{font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--card);
+           color:var(--ink);border-radius:8px;padding:8px 12px;cursor:pointer}
+button.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}/* 「追加」ボタンだけ目立たせる */
+button.btn:hover{filter:brightness(.96)}/* マウスを乗せると少し暗くする */
+
+/* 小さな補足の文字（「コピーしました」など） */
+.note{font-size:.8rem;color:var(--muted);margin-top:10px}
+</style>
+</head>
+
+<body>
+<!-- ===================================================
+     HTML：画面の骨組み
+     id を付けた要素は、JavaScript から $("id") で取り出して使う
+     =================================================== -->
+<main>
+  <h1>割合配分スライダー</h1>
+
+  <!-- ① 合計の入力とモードの切り替え -->
+  <section class="card">
+    <label class="top" for="total">配分する数字（合計）</label>
+    <!-- value="100000" が最初に入っている数字。step="any" で小数も入れられる -->
+    <input id="total" type="number" value="100000" min="0" step="any">
+    <div class="mode">
+      <!-- name をそろえると、2つのうち1つしか選べないラジオボタンになる。
+           value の "cap" / "auto" を JavaScript の mode() で読む -->
+      <label><input type="radio" name="mode" value="cap" checked> 100%で止める</label>
+      <label><input type="radio" name="mode" value="auto"> 他の項目を自動で減らす</label>
+    </div>
+  </section>
+
+  <!-- ② 色分けのバーと、使用・残りの表示（中身は JavaScript が書き込む） -->
+  <section class="card">
+    <div class="bar" id="bar"></div>
+    <div class="summary">
+      <span id="used">使用 0%</span>
+      <span class="rem" id="rem">残り 100%</span>
+    </div>
+  </section>
+
+  <!-- ③ 項目の一覧。中身は空にしておき、JavaScript の render() が作る -->
+  <section class="card" id="list"></section>
+
+  <!-- ④ 操作ボタン -->
+  <div class="actions">
+    <button class="btn primary" id="add">＋ 項目を追加</button>
+    <button class="btn" id="even">均等に割り振る</button>
+    <button class="btn" id="reset">すべて0%に</button>
+    <button class="btn" id="copy">結果をコピー</button>
+  </div>
+  <p class="note" id="msg"></p><!-- 「コピーしました」を出す場所 -->
+</main>
+
+<script>
+</script>
+</body>
+</html>
+  </body>
+</html>
+
+
+
+
+
+
