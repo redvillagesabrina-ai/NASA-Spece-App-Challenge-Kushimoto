@@ -8,11 +8,16 @@ let items=[
 let seq=items.length;
 
 const $=id=>document.getElementById(id);
-const total=()=>Math.max(0,parseFloat($("total").value)||0);
+let budget = 0;
+const total = () => budget;
 const mode=()=>document.querySelector('input[name=mode]:checked').value;
 const sum=(except=-1)=>items.reduce((s,it,i)=>i===except?s:s+it.pct,0);
 const r1=v=>Math.round(v*10)/10;
 const fmt=v=>v.toLocaleString("ja-JP",{maximumFractionDigits:2});
+const fmtShort = v =>
+  v >= 1e9 ? (v / 1e9).toFixed(2) + "B" :
+  v >= 1e6 ? (v / 1e6).toFixed(1) + "M" :
+  fmt(v);
 
 function setPct(i,v){
   v=Math.min(100,Math.max(0,r1(v)));
@@ -42,12 +47,12 @@ function render(){
     row.innerHTML=`
       <div class="row-head">
         <span class="dot" style="background:${c}"></span>
-        <input type="text" value="" aria-label="項目名">
-        <input type="number" class="pct" min="0" max="100" step="0.1" aria-label="割合">%
+        <input type="text" value="" aria-label="Item">
+        <input type="number" class="pct" min="0" max="100" step="0.1" aria-label="Proportion">%
         <span class="amt"></span>
-        <button class="del" title="削除" aria-label="削除">×</button>
+        <button class="del" title="Delete" aria-label="Delete">×</button>
       </div>
-      <input type="range" min="0" max="100" step="0.1" aria-label="割合スライダー">`;
+      <input type="range" min="0" max="100" step="0.1" aria-label="Percentage slider">`;
     const [name,pct]=row.querySelectorAll("input[type=text],input[type=number]");
     const range=row.querySelector("input[type=range]");
     name.value=it.name; pct.value=it.pct; range.value=it.pct;
@@ -57,7 +62,7 @@ function render(){
     row.querySelector(".del").onclick=()=>{items.splice(i,1); render();};
     list.appendChild(row);
   });
-  if(!items.length) list.innerHTML='<p class="note" style="margin:0">項目がありません。「＋ 項目を追加」で追加してください。</p>';
+  if(!items.length) list.innerHTML='<p class="note" style="margin:0">There are no items.Please add it with 「+ Add Item」.</p>';
   update();
 }
 
@@ -67,7 +72,7 @@ function update(){
     const it=items[i];
     row.querySelector(".pct").value=it.pct;
     row.querySelector("input[type=range]").value=it.pct;
-    row.querySelector(".amt").textContent=fmt(T*it.pct/100);
+    row.querySelector(".amt").textContent = "$" + fmtShort(T*it.pct/100);
   });
   $("bar").innerHTML=items.map((it,i)=>`<div style="width:${it.pct}%;background:${COLORS[i%COLORS.length]}"></div>`).join("");
   $("used").textContent=`use ${used}%`;
@@ -86,47 +91,41 @@ $("even").onclick = () => {
 
 random=Math.random()*5
 random=Math.floor(random)
-const budgetlist=[100,200,300,400,500]
-if(budgetlist[random]==100){
+const budgetlist=[919000000,948100000,330600000,22900000,4316000000]
+if(budgetlist[random]==919000000){
 $('project').textContent="Mars exploration mission"
 $('gazou').src="https://www.nasa.gov/wp-content/uploads/2025/09/perseverance-selfie.jpeg?w=1600"}
-if(budgetlist[random]==200){
+if(budgetlist[random]==948100000){
 $('project').textContent="Satellite Launch Project"
 $('gazou').src="https://www.nasa.gov/wp-content/uploads/2023/04/sls-on-the-launch-pad.jpg?w=1920"}
-if(budgetlist[random]==300){
+if(budgetlist[random]==330600000){
 $('project').textContent="Asteroid Impact Avoidance Plan"
 $('gazou').src="https://www.nasa.gov/wp-content/uploads/2023/10/1-pia24834.jpg?w=2048"}
-if(budgetlist[random]==400){
+if(budgetlist[random]==22900000){
 $('project').textContent="Solar power project on the Moon"
 $('gazou').src="https://plus.nasa.gov/wp-content/uploads/2025/12/moonbound-key-art-r4-op-c-horizontal-program-tile-16-9-without-title.jpg"}
-if(budgetlist[random]==500){
+if(budgetlist[random]==4316000000){
 $('project').textContent="Next-generation space telescope development"
 $('gazou').src="https://images-assets.nasa.gov/image/KSC-20260626-PH-SER01_0007/KSC-20260626-PH-SER01_0007~large.jpg?w=900&h=900&fit=clip&crop=faces%2Cfocalpoint"}
-$('total').value=budgetlist[random]
+budget = budgetlist[random];
+$('total').value = "$" + fmtShort(budget);
 $("reset").onclick=()=>{items.forEach(it=>it.pct=0); update();};
 $("copy").onclick=async()=>{
   const T=total();
   const text=items.map(it=>`${it.name}\t${it.pct}%\t${fmt(T*it.pct/100)}`).join("\n")+`\ntotal\t${r1(sum())}%\t${fmt(T*sum()/100)}`;
-  try{await navigator.clipboard.writeText(text); $("msg").textContent="コピーしました。";}
-  catch{ $("msg").textContent="コピーできませんでした。"; }
+  try{await navigator.clipboard.writeText(text); $("msg").textContent="It has been translated";}
+  catch{ $("msg").textContent="Couldn't copy"; }
   setTimeout(()=>$("msg").textContent="",2000);
 };
 render();
-
-// ===== Show results：画面のデータを集めて launch.html に渡す =====
 document.getElementById("result").addEventListener("click", () => {
-  // 合計の金額（#total の入力欄から読む）
-  const T = parseFloat(document.getElementById("total").value) || 0;
-
-  // 項目の一覧（#list の中の .row を1行ずつ読む）
+  const T = total();
   const rows = document.querySelectorAll("#list .row");
   const list = [...rows].map(row => {
-    const name = row.querySelector('input[type=text]').value;      // 項目名
-    const pct  = parseFloat(row.querySelector(".pct").value) || 0; // 割合（%）
-    return { name: name, pct: pct, amount: T * pct / 100 };        // 金額 = 合計 × 割合 ÷ 100
+    const name = row.querySelector('input[type=text]').value;   
+    const pct  = parseFloat(row.querySelector(".pct").value) || 0; 
+    return { name: name, pct: pct, amount: T * pct / 100 };      
   });
-
-  // プロジェクト名（#project の文字）
   const project = document.getElementById("project").textContent;
 
   const data = { project: project, total: T, items: list };

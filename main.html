@@ -41,26 +41,28 @@
   .amt{min-width:110px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
   .del{border:none;background:none;color:var(--muted);font-size:1.1rem;cursor:pointer;padding:4px 6px;border-radius:6px}
   .del:hover{color:var(--warn);background:var(--line)}
-  input[type=range]{width:100%;margin-top:8px;accent-color:var(--accent)}
+  input[type=range]{width:100%;margin-top:8px;accent-color:var(--ink)}
   .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
   button.btn{font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:8px 12px;cursor:pointer}
   button.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
   button.btn:hover{filter:brightness(.96)}
   .note{font-size:.8rem;color:var(--muted);margin-top:10px}
   .akari{display: flex;}
+  .card, .bar, .del, button.btn, input[type=number], input[type=text]{border-radius:0}
 </style>
 </head>
 <body>
 <main>
    <h2>Space Mission Design Game</h2>
+   <h1>You’ve been given a mission and a budget. You are the project manager. Think about how to allocate the budget to make this project succeed. Good luck!<br><br><br><br><br></h1>
    <h3 id="project"></h3>
-   <img id="gazou" alt="サンプル画像" width="600" height="400">
+   <img id="gazou" alt="Sample image" width="600" height="400">
   <h1>Percentage Distribution Slider</h1>
 
   <section class="card">
     <label class="top" for="total"></label>
     <div class="akari">
-    <input id="total" type="number"  min="0" step="any" disabled ><h2>$</h2>
+    <input id="total" type="text" disabled >y
     </div>
     <div class="mode">
       <label><input type="radio" name="mode" value="cap" checked>Stop at 100%</label>
