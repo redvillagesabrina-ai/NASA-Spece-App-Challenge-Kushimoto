@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>打ち上げシミュレーション</title>
+<style>
+  body{margin:0;background:#101826;}
+</style>
+<!-- タイトル用の宇宙フォント（Orbitron）を読み込む -->
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/phina.js@0.2.3/build/phina.min.js"></script>
+</head>
+<body>
+<script>
+phina.globalize();
+const W = 640, H = 960;   
+const TRIALS = 1000;     
+const MAX_REL = 0.7;  
+const POWER = 2;        
+const PROJECT_WEIGHTS = {
+  "Mars exploration mission":                    { Development: 2, Launch: 2, Operations: 5 },
+  "Satellite Launch Project":                    { Development: 2, Launch: 5, Operations: 1 },
+  "Asteroid Impact Avoidance Plan":              { Development: 5, Launch: 3, Operations: 1 },
+  "Solar power project on the Moon":             { Development: 3, Launch: 4, Operations: 1 },
+  "Next-generation space telescope development": { Development: 6, Launch: 2, Operations: 1 },
+};
+const DEFAULT_WEIGHTS = { Development: 3, Test: 3, Launch: 2, Operations: 1, Support: 1, "開発": 3, "テスト": 3, "サポート": 1 };
+function weightOf(project, name) {
+  const table = PROJECT_WEIGHTS[project] || DEFAULT_WEIGHTS;  
+  const lower = name.toLowerCase();
+  for (const key in table) {
+    if (lower.includes(key.toLowerCase())) return table[key]; 
+  }
+  return 1;
+}
+const FLY_TIME = 800;    
+const ROCKET_X = 170, GROUND_Y = 830; 
+const C = { text:"#e8e6e1", muted:"#9aa3b2", ok:"#6fbfa6", ng:"#e46a5a", panel:"#1a2436", line:"#2c3a52" };
+const fmt = v => Math.round(v).toLocaleString("ja-JP");
+const _mctx = document.createElement("canvas").getContext("2d");
+function fitSize(text, size, maxW, minSize = 11) {
+  _mctx.font = `${size}px 'HiraKakuProN-W3', sans-serif`;
+  while (size > minSize && _mctx.measureText(text).width > maxW) {
+    size--;
+    _mctx.font = `${size}px 'HiraKakuProN-W3', sans-serif`;
+  }
+  return size;
+}
+function loadData() {
+  try {
+    const raw = new URLSearchParams(location.search).get("data");
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (d.items && d.items.length) return d;
+    }
+  } catch (e) {}
+  return {
+    total: 100000,
+    items: [
+      { name: "開発", pct: 40, amount: 40000 },
+      { name: "テスト", pct: 15, amount: 15000 },
+      { name: "広告", pct: 30, amount: 30000 },
+      { name: "サポート", pct: 5, amount: 5000 },
+    ]
+  };
+}
+const DATA = loadData();
+phina.define("MainScene", {
+  superClass: "DisplayScene",
+  init: function (options) {
+        this.superInit(options);
+    this.backgroundColor = "#101826";
+    const self = this;
+    const N = DATA.items.length;
+    const weights = DATA.items.map(it => weightOf(DATA.project, it.name));
+    const wSum = weights.reduce((a, b) => a + b, 0);
+
+    this.items = DATA.items.map((it, i) => {
+      const need = 100 * weights[i] / wSum; 
+      const s = it.pct / need;             
+      const rel = it.pct === 0 ? 0
+                : s >= 1       ? 1 - (1 - MAX_REL) / s
+                :                MAX_REL * Math.pow(s, POWER);
+      return { name: it.name, pct: it.pct, amount: it.amount, rel: rel, fails: 0, need: need };
+    });
+    this.hasZero = this.items.some(it => it.pct === 0);
+    let success = 0;
+    for (let t = 0; t < TRIALS; t++) {
+      let failed = false;
+      for (const it of this.items) {
+        if (!this.judge(it)) { it.fails++; failed = true; break; }
+      }
+      if (!failed) success++;
+    }
+    const theory = this.items.reduce((p, it) => p * it.rel, 1); 
+    const maxFails = Math.max(1, ...this.items.map(it => it.fails));
+    const TITLE_FONT = "'Orbitron', sans-serif";
+    const titleText = DATA.project || "Launch simulation";
+    let titleSize = 32;
+    const mctx = document.createElement("canvas").getContext("2d");
+    mctx.font = `700 ${titleSize}px ${TITLE_FONT}`;
+    while (titleSize > 14 && mctx.measureText(titleText).width > 600) {
+      titleSize--;
+      mctx.font = `700 ${titleSize}px ${TITLE_FONT}`;
+    }
+    Label({ text: titleText, fontSize: titleSize, fontWeight: "700", fontFamily: TITLE_FONT, fill: C.text })
+      .addChildTo(this).setPosition(W / 2, 50);
+    this.resultLabel = Label({ text: "", fontSize: 30, fill: C.text }).addChildTo(this).setPosition(W / 2, 105);
+    Label({ text: `${TRIALS}out of Success ${success}time（${(success / TRIALS * 100).toFixed(1)}%）  theoretical value ${(theory * 100).toFixed(1)}%`,
+            fontSize: 18, fill: C.muted }).addChildTo(this).setPosition(W / 2, 150);
+    for (let i = 0; i < 40; i++) {
+      CircleShape({ radius: Math.random() * 1.8 + 0.5, fill: "#ffffff", stroke: null, strokeWidth: 0 })
+        .addChildTo(this).setPosition(Math.random() * 320 + 10, Math.random() * 640 + 190).alpha = Math.random() * 0.6 + 0.2;
+    }
+    this.items.forEach((it, i) => {
+      it.cpY = 760 - (i + 1) * (560 / N);
+      RectangleShape({ width: 280, height: 2, fill: C.line, stroke: null, strokeWidth: 0 })
+        .addChildTo(this).setPosition(ROCKET_X, it.cpY);
+            Label({ text: it.name, fontSize: fitSize(it.name, 16, 250), fill: C.muted, align: "left" }).addChildTo(this).setPosition(32, it.cpY - 14);
+      it.mark = Label({ text: "", fontSize: 26, fill: C.ok }).addChildTo(this).setPosition(290, it.cpY - 16); 
+    });
+    RectangleShape({ width: 320, height: 24, fill: "#2c3a52", stroke: null, strokeWidth: 0 })
+      .addChildTo(this).setPosition(ROCKET_X, GROUND_Y + 50);
+    this.rocket = DisplayElement().addChildTo(this).setPosition(ROCKET_X, GROUND_Y);
+    this.flame = CircleShape({ radius: 12, fill: "#ffb347", stroke: null, strokeWidth: 0 }).addChildTo(this.rocket).setPosition(0, 42);
+    TriangleShape({ radius: 16, fill: "#c94c4c", stroke: null, strokeWidth: 0 }).addChildTo(this.rocket).setPosition(-20, 28); 
+    TriangleShape({ radius: 16, fill: "#c94c4c", stroke: null, strokeWidth: 0 }).addChildTo(this.rocket).setPosition(20, 28);
+    RectangleShape({ width: 36, height: 70, fill: "#e8e6e1", stroke: null, strokeWidth: 0, cornerRadius: 6 }).addChildTo(this.rocket); 
+    TriangleShape({ radius: 22, fill: "#c94c4c", stroke: null, strokeWidth: 0 }).addChildTo(this.rocket).setPosition(0, -46); 
+    CircleShape({ radius: 8, fill: "#4a6fa5", stroke: "#ffffff", strokeWidth: 2 }).addChildTo(this.rocket).setPosition(0, -10); 
+    RectangleShape({ width: 290, height: 640, fill: C.panel, stroke: null, strokeWidth: 0, cornerRadius: 10 })
+      .addChildTo(this).setPosition(480, 520);
+       Label({ text: "Results for each step", fontSize: 20, fill: C.text, align: "left" }).addChildTo(this).setPosition(352, 225);
+
+    const rowH = Math.min(90, 560 / N);
+    this.items.forEach((it, i) => {
+      const y = 270 + rowH * i;
+      Label({ text: it.name, fontSize: fitSize(it.name, 19, 256), fill: C.text, align: "left" }).addChildTo(this).setPosition(352, y);
+      Label({ text: `${fmt(it.amount)}（${it.pct}%）`, fontSize: 15, fill: C.muted, align: "left" }).addChildTo(this).setPosition(352, y + 22);
+      Label({ text: `Success rate ${(it.rel * 100).toFixed(1)}%`, fontSize: 15, fill: it.rel >= 0.95 ? C.ok : C.ng, align: "right" })
+        .addChildTo(this).setPosition(608, y + 22);
+      Label({ text: `Caused failure: ${it.fails} times`, fontSize: 13, fill: C.muted, align: "right" }).addChildTo(this).setPosition(608, y + 58);
+      Label({ text: `Need ${it.need.toFixed(0)}%`, fontSize: 13, fill: C.muted, align: "left" })
+        .addChildTo(this).setPosition(352, y + 58);
+      RectangleShape({ width: 256, height: 8, fill: C.line, stroke: null, strokeWidth: 0 })
+        .addChildTo(this).setOrigin(0, 0.5).setPosition(352, y + 42);
+      RectangleShape({ width: 256, height: 8, fill: C.ng, stroke: null, strokeWidth: 0 })
+        .addChildTo(this).setOrigin(0, 0.5).setPosition(352, y + 42).scaleX = it.fails / maxFails;
+    });
+    Button({ text: "Launch one more time", width: 260, height: 56, fill: "#2f6f5e", fontColor: "#fff", fontSize: 22, cornerRadius: 8 })
+      .addChildTo(this).setPosition(170, 920)
+      .onpush = function () { self.launch(); };
+    Button({ text: "← Back", width: 260, height: 56, fill: "#4b5568", fontColor: "#fff", fontSize: 22, cornerRadius: 8 })
+      .addChildTo(this).setPosition(480, 920)
+      .onpush = function () {
+        history.back();   // ブラウザの「戻る」ボタンと同じ：1つ前のページに戻る
+      };
+    this.launch(); 
+  },
+  launch: function () {
+    this.rocket.tweener.clear();
+    this.tweener.clear();
+    this.rocket.show().setPosition(ROCKET_X, GROUND_Y);
+    this.items.forEach(it => { it.mark.text = ""; });
+    this.resultLabel.text = "Countdown…";
+    this.resultLabel.fill = C.text;
+    this.flying = true;
+    this.tweener.wait(700).call(() => {
+      this.resultLabel.text = "During launch…";
+      this.flyTo(0);
+    });
+  },
+  judge: function (it) {
+    if (it.pct === 0) return false; 
+    if (this.hasZero) return true;    
+    return Math.random() < it.rel;   
+  },
+  flyTo: function (i) {
+    if (i >= this.items.length) { this.success(); return; } 
+    const it = this.items[i];
+    this.rocket.tweener.clear()
+      .to({ y: it.cpY }, FLY_TIME, "easeInOutSine")
+      .call(() => {
+         if (this.judge(it)) {          
+          it.mark.text = "✓"; it.mark.fill = C.ok;
+          this.flyTo(i + 1);
+        } else {
+          it.mark.text = "✕"; it.mark.fill = C.ng;
+          this.explode(it);
+        }
+      });
+  },
+  success: function () {
+    this.rocket.tweener.clear()
+      .to({ y: -150 }, 900, "easeInQuad")
+      .call(() => {
+        this.flying = false;
+        this.resultLabel.text = "Launch successful！";
+        this.resultLabel.fill = C.ok;
+      });
+  },
+  explode: function (it) {
+    this.flying = false;
+    const x = this.rocket.x, y = this.rocket.y;
+    this.rocket.hide();
+    const colors = ["#ffb347", "#ff6b4a", "#ffd56b"];
+    for (let k = 0; k < 14; k++) {
+      const p = CircleShape({ radius: 6 + Math.random() * 10, fill: colors[k % 3], stroke: null, strokeWidth: 0 })
+        .addChildTo(this).setPosition(x, y);
+      const a = Math.random() * Math.PI * 2, d = 40 + Math.random() * 70; 
+      p.tweener.to({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, alpha: 0, scaleX: 2, scaleY: 2 }, 700, "easeOutQuad")
+        .call(() => p.remove());
+    }
+
+    this.resultLabel.text = it.pct === 0
+      ? `"${it.name}" had no budget!`
+      : `Failed at "${it.name}"`;
+    this.resultLabel.fill = C.ng;
+  },
+  update: function () {
+    this.flame.visible = this.flying;
+    if (this.flying) this.flame.scaleY = 1 + Math.random() * 0.8;
+  },
+});
+phina.main(function () {
+  document.fonts.load("700 32px 'Orbitron'").finally(() => {
+    GameApp({ startLabel: "main", width: W, height: H }).run();
+  });
+});
+
+
+
+</script>
+</body>
+</html>
